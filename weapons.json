@@ -1,0 +1,14 @@
+{
+"FN-RAL": {
+        "Type": "Rifle",
+        "WA": -1,
+        "Damage": "6D6",
+	"Ammo": "7.62",
+        "Shots": 30,
+        "ROF": 30,
+        "Rel": "VR",
+        "Range": 400
+}
+
+
+}

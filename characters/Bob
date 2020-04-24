@@ -1,0 +1,43 @@
+# Bob
+{
+	"stats": {
+		"INT": 0,
+		"REF": 9,
+		"CL": 0,
+		"TECH": 0,
+		"LK": 0,
+		"ATT": 0,
+		"MA": 0,
+		"EMP": 0,
+		"BT": 0
+        },
+
+	"skills": {
+        	"Career": {
+        	    "Combat Sense": 6
+        	    },
+        	"REF": {
+        	    "Rifle": 6
+        	    },
+        	"INT": {
+        	    "Awareness/Notice": 6
+        	    }
+        },
+
+	"weapons": {
+		"FN-RAL": {
+			"mag": 30,
+			"ammotype": "fmj"
+		},
+		"X-9mm": {
+			"mag": 30,
+			"ammotype": "jhp"
+		}
+	},
+
+	"ammo": {
+		"7.62": 120,
+		"9mm": 20
+	}
+
+}
