@@ -8,7 +8,15 @@
         "ROF": 30,
         "Rel": "VR",
         "Range": 400
+},
+"X-9mm":{
+        "Type": "Pistol",
+        "WA": 0,
+        "Damage": "2D6+1",
+	"Ammo": "9mm",
+        "Shots": 12,
+        "ROF": 2,
+        "Rel": "ST",
+        "Range": 50
 }
-
-
 }
