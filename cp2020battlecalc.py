@@ -9,9 +9,26 @@ def dice(num, not_explode=False):
             result += dice(num)
     return result
 
+def rollBodypart():
+    bodypart_roll = dice(10, True)
+    if bodypart_roll == 1:
+        bodypart = "head"
+    elif bodypart_roll >= 2 and bodypart_roll <= 4:
+        bodypart = "torso"
+    elif bodypart_roll == 5:
+        bodypart = "r_arm"
+    elif bodypart_roll == 6:
+        bodypart = "l_arm"
+    elif bodypart_roll >= 7 and bodypart_roll <= 8:
+        bodypart = "r_leg"
+    elif bodypart_roll >= 9 and bodypart_roll <= 10:
+        bodypart = "l_leg"
+
+    return bodypart
+
 class Character:
 
-    def __init__(self, name, role, state, wounded, hp, blunt_dmg, EV, armor, stats, skills, weapons, ammo):
+    def __init__(self, name, role, state, wounded, hp, blunt_dmg, EV, armor, stats, skills, weapons, ammo, notes):
         self.name = name
         self.role = role
         self.state = state
@@ -24,6 +41,7 @@ class Character:
         self.skills = skills
         self.weapons = weapons
         self.ammo = ammo
+        self.notes = notes
 
         self.current_weapon = list(weapons)[0]
 
@@ -101,6 +119,8 @@ class Character:
         return self.stats[stat] - woundMod(stat)
 
     def StunSave(self):
+        success = False
+        outcome = ""
         stun_mod = { "no": 0,
                 "light": 0,
                 "serious": 1,
@@ -115,18 +135,43 @@ class Character:
 
         treshhold = self.GetStat("BT") - stun_mod[self.wounded]
         diceroll = dice(10, True)
+
         if diceroll <= treshhold:
-            self.state = "active"
+            success = True
+            outcome = "success"
         else:
-            self.state = "stunned"
+            success = False
+            outcome = "failed"
 
-        return "{} rolls stun save: {} vs d10({}) (BT {}, stun_mod {}) - {}"\
-            .format(self.name, treshhold, diceroll, self.GetStat("BT"), stun_mod[self.wounded], self.state)
+        message = "{} rolls stun save: {} vs d10({}) (BT {}, stun_mod {}) - {}\n"\
+            .format(self.name, treshhold, diceroll, self.GetStat("BT"), stun_mod[self.wounded], outcome)
 
+        return success, message
+
+    def DeathSave(self):
+        if "mortal" in self.wounded:
+            mortal_mod = int(re.split(" ", self.wounded)[1])
+        else:
+            mortal_mod = 0
+
+        treshhold = self.GetStat("BT") - mortal_mod
+        diceroll = dice(10, True)
+
+        if diceroll <= treshhold:
+            success = True
+            outcome = "success"
+        else:
+            success = False
+            outcome = "failed"
+
+        message = "{} rolls death save: {} vs d10({}) (BT {}, mortal_mod {}) - {}\n"\
+            .format(self.name, treshhold, diceroll, self.GetStat("BT"), mortal_mod, outcome)
+
+        return success, message
 
 
     def Damage(self, bodypart, damage_stat):
-        stun_roll_msg = ""
+        message = ""
         armor_zone = bodypart
 
         btm = self.GetBTM()
@@ -143,7 +188,7 @@ class Character:
 
         damage_output = damage_stat+": "
         damage_raw = 0
-        for i in range(0, dmg_num):
+        for _ in range(0, dmg_num):
             dmg_inc = dice(dmg_dice)
             damage_raw += dmg_inc
             damage_output += str(dmg_inc)+" + "
@@ -171,21 +216,47 @@ class Character:
             self.armor[armor_zone]["SP"] -= 1
             self.hp -= damage
 
-
-
             self.UpdateWoundState()
 
+            if damage > 8 and bodypart != "torso":
+                stun_roll_success, stun_roll_msg = self.StunSave()
+                message += "More than 8 damage to limb! "+stun_roll_msg
+                if stun_roll_success == False:
+                    message += "Stun roll failed, {} is severed. ".format(bodypart)
+                    self.notes += "{} severed;".format(bodypart)
+                    if bodypart == "head":
+                        self.state = "dead"
+                    else:
+                        death_save_success, death_save_msg = self.DeathSave()
+                        if not death_save_success:
+                            self.state = "dead"
+                            message += death_save_msg
+
+                            return damage, damage_output, message
+
+                        message += death_save_msg
+
+            if "mortal" in self.wounded:
+                death_save_success, death_save_msg = self.DeathSave()
+                if not death_save_success:
+                    self.state = "dead"
+                    message += death_save_msg
+                    return damage, damage_output, message
+
+                message += death_save_msg
+
             if self.state == "active":
-                stun_roll_msg = self.StunSave()+"\n"
+                stun_roll_success, stun_roll_msg = self.StunSave()
+                message += stun_roll_msg
+                if stun_roll_success == True:
+                    self.state = "active"
+                else:
+                    self.state = "stunned"
                 
         else:
             damage = 0
 
-            # ОТРЫВ КОНЕЧНОСТЕЙ
-
-            # СПАСБРОСКИ
-
-        return damage, damage_output, stun_roll_msg
+        return damage, damage_output, message
 
 
     def Shoot(self, target_name, distance, firemode="s", burst_size=0, preroll=0, bodypart="random", cm=0):
@@ -247,6 +318,10 @@ class Character:
                     .format(self.GetStat("REF"), weapontype, self.skills["REF"][weapontype], self.EV, WEAPONS[self.current_weapon]["WA"], diceroll)
 
                 if bodypart != "random":
+                    if "{} severed".format(bodypart) in target.notes:
+                        message = "{}'s {} is already severed, choose another bodypart\n".format(target.name, bodypart)
+                        return message
+
                     bodypart_mod = -4
                     message += " - bodypart(4)"
                 else:
@@ -260,22 +335,14 @@ class Character:
               
                 if result > difficulty:
                     if bodypart == "random":
-                        bodypart_roll = dice(10, True)
-                        if bodypart_roll == 1:
-                            bodypart = "head"
-                        elif bodypart_roll >= 2 and bodypart_roll <= 4:
-                            bodypart = "torso"
-                        elif bodypart_roll == 5:
-                            bodypart = "r_arm"
-                        elif bodypart_roll == 6:
-                            bodypart = "l_arm"
-                        elif bodypart_roll >= 7 and bodypart_roll <= 8:
-                            bodypart = "r_leg"
-                        elif bodypart_roll >= 9 and bodypart_roll <= 10:
-                            bodypart = "l_leg"
-                    
-                    damage, damage_output, stun_roll_msg = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"])
-                    message += "Dealt {} damage to the {} [{}], target HP is {} ({})\n{}".format(damage, bodypart, damage_output, target.hp, target.state, stun_roll_msg)
+                        bodypart = rollBodypart()
+                        while "{} severed".format(bodypart) in target.notes:
+                            message += "{}'s {} is severed, rerolling bodypart\n".format(target.name, bodypart)
+                            bodypart = rollBodypart()
+
+                    damage, damage_output, damage_report = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"])
+                    message += "Dealt {} damage to the {} [{}], target HP is {} ({})\n".format(damage, bodypart, damage_output, target.hp, target.state)
+                    message += damage_report
                 else:
                     message += "Missed\n"
 
@@ -299,11 +366,18 @@ Alice = charlist["Alice"]
 
 print(Alice.GetInfo())
 
-Bob.SwitchWeapon("X-9mm")
+#Bob.SwitchWeapon("X-9mm")
 
-print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
-print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
-print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
+print(Bob.Shoot("Alice", 1))
+print(Bob.Shoot("Alice", 1))
+print(Bob.Shoot("Alice", 1))
+print(Bob.Shoot("Alice", 1))
+print(Bob.Shoot("Alice", 1))
+print(Bob.Shoot("Alice", 1))
+print(Bob.Shoot("Alice", 1))
+print(Bob.Shoot("Alice", 1))
+print(Bob.Shoot("Alice", 1))
+#print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
 #print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
 
 print(Alice.Shoot("Bob", 1))
@@ -313,21 +387,4 @@ print(Alice.Shoot("Bob", 1))
 
 print(Alice.GetInfo())
 print(Bob.GetInfo())
-print(Alice.GetStat("REF"))
-
-print(Alice.StunSave())
-print(Alice.StunSave())
-print(Alice.StunSave())
-print(Alice.StunSave())
-
-Bob.SwitchWeapon("FN-RAL")
-
-
-
-
-
-
-#print(d10())
-
-
 

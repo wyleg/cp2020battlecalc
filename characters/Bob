@@ -5,6 +5,7 @@
 	"hp": 40,
 	"blunt_dmg": 0,
 	"wounded": "no",
+	"notes": "",
 	"EV": 1,
 	"armor": {
 		"head": {
@@ -45,7 +46,7 @@
         },
 
         "skills": {
-                "Career": {
+                "Role": {
                     "Combat Sense": 6
                     },
                 "REF": {
