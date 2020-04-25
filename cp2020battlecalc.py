@@ -28,7 +28,16 @@ class Character:
         if weapon in self.weapons:
             self.current_weapon = weapon
         else:
-            print("{} don't have that weapon on him".format(self.name))
+            print("{} don't have that weapon in inventory".format(self.name))
+
+
+    def GetInfo(self):
+        message = "{} [{}] HP {}\n".format(self.name, self.role, self.hp)
+        message += re.sub("{|'|}", "", re.sub("},", "\n", "Armor:\n {}\n".format(self.armor)))
+        message += "Equipped with {} [{}/{} rds]\n"\
+            .format(self.current_weapon, self.weapons[self.current_weapon]["mag"], WEAPONS[self.current_weapon]["Shots"])
+
+        return message
 
     def Damage(self, bodypart, damage_stat):
         armor_zone = bodypart
@@ -67,15 +76,17 @@ class Character:
 
         sp = self.armor[armor_zone]["SP"]
 
-        damage_output += " = "+str(damage_raw)+" - "+str(sp)+" SP - "+str(btm)+" BTM"
+        damage_output += " = "+str(damage_raw)+" | "+str(sp)+" SP | "+str(btm)+" BTM"
 
         if damage_raw > sp:
             
 
             damage = damage_raw - sp - btm
+            
             if damage < 1:
                 damage = 1
             self.armor[armor_zone]["SP"] -= 1
+            self.hp -= damage
         else:
             damage = 0
 
@@ -83,10 +94,10 @@ class Character:
 
             # СПАСБРОСКИ
 
-        return damage, damage_output
+        return damage, damage_output, self.hp
 
 
-    def Shoot(self, target_name, distance, firemode="s", burst_size=0, bodypart="random", cm=0):
+    def Shoot(self, target_name, distance, firemode="s", burst_size=0, preroll=0, bodypart="random", cm=0):
         # s - single fire
         # b - burst fire
         # f - full auto
@@ -95,18 +106,26 @@ class Character:
 
         if self.weapons[self.current_weapon]["mag"] > 0:
 
-            message = "{} is equipped with {} [{}/{} rds]\n"\
-                .format(self.name, self.current_weapon, self.weapons[self.current_weapon]["mag"], WEAPONS[self.current_weapon]["Shots"])
+            if bodypart != "random":
+                bodypart_message = "'s {}".format(bodypart)
+            else:
+                bodypart_message = ""
 
-            message += "Firing at {} with {} ({})\n".format(target_name, self.current_weapon, firemode)
+            message = "{} firing at {}{} with {} ({}) [{}/{} rds]"\
+                .format(self.name, target_name, bodypart_message, self.current_weapon, firemode, self.weapons[self.current_weapon]["mag"], WEAPONS[self.current_weapon]["Shots"])
 
-            diceroll = dice(10)
+            if preroll == 0:
+                diceroll = dice(10)
+                message += "\n"
+            else:
+                diceroll = preroll
+                message += " (prerolled dice {})\n".format(diceroll)
 
             if diceroll == 1:
                 message += "CRIT FAIL\n"
             else:
                 # calculating difficulty by range
-                if distance < 1:
+                if distance <= 1:
                     difficulty = 10
                 else:
                     gun_range = WEAPONS[self.current_weapon]["Range"]
@@ -130,14 +149,21 @@ class Character:
                 message += "Gun range: {}, distance to target: {}, difficulty: {}\n"\
                     .format(WEAPONS[self.current_weapon]["Range"], distance, difficulty)
 
-                result = self.stats["REF"] + self.skills["REF"][weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] - self.EV
+                message += "REF({}) + {}({}) - EV({}) + WA({}) + d10({})"\
+                    .format(self.stats["REF"], weapontype, self.skills["REF"][weapontype], self.EV, WEAPONS[self.current_weapon]["WA"], diceroll)
+
+                if bodypart != "random":
+                    bodypart_mod = -4
+                    message += " - bodypart(4)"
+                else:
+                    bodypart_mod = 0
+
+                result = self.stats["REF"] + self.skills["REF"][weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] - self.EV + bodypart_mod
 
                 self.weapons[self.current_weapon]["mag"] -= 1
 
-
-                message += "REF({}) + {}({}) - EV({}) + WA({}) + d10({}) = {}\n"\
-                    .format(self.stats["REF"], weapontype, self.skills["REF"][weapontype], self.EV, WEAPONS[self.current_weapon]["WA"], diceroll, result)
-
+                message += " = {}\n".format(result)
+              
                 if result > difficulty:
                     if bodypart == "random":
                         bodypart_roll = dice(10, True)
@@ -153,10 +179,9 @@ class Character:
                             bodypart = "r_leg"
                         elif bodypart_roll >= 9 and bodypart_roll <= 10:
                             bodypart = "l_leg"
-
-
-                    damage, damage_output = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"])
-                    message += "Dealt {} damage to the {} [{}]\n".format(damage, bodypart, damage_output)
+                    
+                    damage, damage_output, target_health = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"])
+                    message += "Dealt {} damage to the {} [{}], target HP is {}\n".format(damage, bodypart, damage_output, target_health)
                 else:
                     message += "Missed\n"
 
@@ -176,16 +201,25 @@ for char in character_files:
         charlist.update( { char: Character(**json.loads(char_file.read())) } )
 
 Bob = charlist["Bob"]
+Alice = charlist["Alice"]
+
+print(Bob.GetInfo())
 
 Bob.SwitchWeapon("X-9mm")
 
-print(Bob.Shoot("Alice", 5))
+print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
+print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
+print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
+print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
+print(Bob.Shoot("Alice", 5, preroll=9))
 print(Bob.Shoot("Alice", 15))
+
+print(Alice.GetInfo())
 
 Bob.SwitchWeapon("FN-RAL")
 
-print(Bob.Shoot("Alice", 200))
-print(Bob.Shoot("Alice", 50))
+
+
 
 
 

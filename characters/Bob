@@ -47,7 +47,7 @@
                     },
                 "REF": {
                     "Rifle": 6,
-		    "Pistol": 3
+		    "Pistol": 6
                     },
                 "INT": {
                     "Awareness/Notice": 6

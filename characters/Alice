@@ -9,23 +9,23 @@
 			"type": "hard"
 		},
 		"torso": {
-			"SP": 20,
+			"SP": 15,
 			"type": "hard"
 		},
 		"r_arm": {
-			"SP": 10,
+			"SP": 5,
 			"type": "soft"
 		},
 		"l_arm": {
-			"SP": 10,
+			"SP": 5,
 			"type": "soft"
 		},
 		"r_leg": {
-			"SP": 10,
+			"SP": 6,
 			"type": "soft"
 		},
 		"l_leg": {
-			"SP": 10,
+			"SP": 6,
 			"type": "soft"
 		}
 	},
