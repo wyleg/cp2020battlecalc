@@ -1,7 +1,10 @@
 {
 	"name": "Bob",
 	"role": "Solo",
+	"state": "active",
 	"hp": 40,
+	"blunt_dmg": 0,
+	"wounded": "no",
 	"EV": 1,
 	"armor": {
 		"head": {
@@ -38,7 +41,7 @@
                 "ATT": 0,
                 "MA": 0,
                 "EMP": 0,
-                "BT": 0
+                "BT": 8
         },
 
         "skills": {

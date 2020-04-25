@@ -11,10 +11,13 @@ def dice(num, not_explode=False):
 
 class Character:
 
-    def __init__(self, name, role, hp, EV, armor, stats, skills, weapons, ammo):
+    def __init__(self, name, role, state, wounded, hp, blunt_dmg, EV, armor, stats, skills, weapons, ammo):
         self.name = name
         self.role = role
+        self.state = state
+        self.wounded = wounded
         self.hp = hp
+        self.blunt_dmg = blunt_dmg
         self.EV = EV
         self.armor = armor
         self.stats = stats
@@ -24,24 +27,7 @@ class Character:
 
         self.current_weapon = list(weapons)[0]
 
-    def SwitchWeapon(self, weapon):
-        if weapon in self.weapons:
-            self.current_weapon = weapon
-        else:
-            print("{} don't have that weapon in inventory".format(self.name))
-
-
-    def GetInfo(self):
-        message = "{} [{}] HP {}\n".format(self.name, self.role, self.hp)
-        message += re.sub("{|'|}", "", re.sub("},", "\n", "Armor:\n {}\n".format(self.armor)))
-        message += "Equipped with {} [{}/{} rds]\n"\
-            .format(self.current_weapon, self.weapons[self.current_weapon]["mag"], WEAPONS[self.current_weapon]["Shots"])
-
-        return message
-
-    def Damage(self, bodypart, damage_stat):
-        armor_zone = bodypart
-
+    def GetBTM(self):
         bt = self.stats["BT"]
         if bt <= 2:
             btm = 0
@@ -54,6 +40,97 @@ class Character:
         elif bt == 10:
             btm = 4
 
+        return btm
+
+    def UpdateWoundState(self):
+        dmg = 40 - self.hp
+        if dmg == 0:
+            self.wounded = "no"
+        elif dmg >= 1 and dmg <= 4:
+            self.wounded = "light"
+        elif dmg >= 5 and dmg <= 8:
+            self.wounded = "serious"
+        elif dmg >= 9 and dmg <= 12:
+            self.wounded = "critical"
+        elif dmg >= 13 and dmg <= 16:
+            self.wounded = "mortal 0"
+        elif dmg >= 17 and dmg <= 20:
+            self.wounded = "mortal 1"
+        elif dmg >= 21 and dmg <= 24:
+            self.wounded = "mortal 2"
+        elif dmg >= 25 and dmg <= 28:
+            self.wounded = "mortal 3"
+        elif dmg >= 29 and dmg <= 32:
+            self.wounded = "mortal 4"
+        elif dmg >= 33 and dmg <= 36:
+            self.wounded = "mortal 5"
+        elif dmg >= 37 and dmg <= 40:
+            self.wounded = "mortal 6"
+        
+        if dmg > 40:
+            self.state = "dead"
+
+    def SwitchWeapon(self, weapon):
+        if weapon in self.weapons:
+            self.current_weapon = weapon
+        else:
+            print("{} don't have that weapon in inventory".format(self.name))
+
+
+    def GetInfo(self):
+        message = "{} [{}], {}, HP {}, {} wounds\n".format(self.name, self.role, self.state, self.hp, self.wounded)
+        message += re.sub("{|'|}", "", re.sub("},", "\n", "Armor:\n {}\n".format(self.armor)))
+        message += "Equipped with {} [{}/{} rds]\n"\
+            .format(self.current_weapon, self.weapons[self.current_weapon]["mag"], WEAPONS[self.current_weapon]["Shots"])
+
+        return message
+
+    def GetStat(self, stat):
+        def woundMod(stat):
+            stat_mod = 0
+            if stat == "CL" or stat == "REF" or stat == "MA" or stat == "INT":
+                wound = self.wounded
+                if wound == "serious" and stat == "REF":
+                    stat_mod = 2
+                elif wound == "critical":
+                    stat_mod = int(self.stats["REF"]/2)
+                elif "mortal" in wound:
+                    stat_mod = int(2*self.stats["REF"]/3)
+            return stat_mod
+
+        return self.stats[stat] - woundMod(stat)
+
+    def StunSave(self):
+        stun_mod = { "no": 0,
+                "light": 0,
+                "serious": 1,
+                "critical": 2,
+                "mortal 0": 3,
+                "mortal 1": 4,
+                "mortal 2": 5,
+                "mortal 3": 6,
+                "mortal 4": 7,
+                "mortal 5": 8,
+                "mortal 6": 9 }
+
+        treshhold = self.GetStat("BT") - stun_mod[self.wounded]
+        diceroll = dice(10, True)
+        if diceroll <= treshhold:
+            self.state = "active"
+        else:
+            self.state = "stunned"
+
+        return "{} rolls stun save: {} vs d10({}) (BT {}, stun_mod {}) - {}"\
+            .format(self.name, treshhold, diceroll, self.GetStat("BT"), stun_mod[self.wounded], self.state)
+
+
+
+    def Damage(self, bodypart, damage_stat):
+        stun_roll_msg = ""
+        armor_zone = bodypart
+
+        btm = self.GetBTM()
+
         dmg_parts = re.split("D", damage_stat)
         try:
             dmg_dice = int(re.split(r"\+", dmg_parts[1])[0])
@@ -61,9 +138,9 @@ class Character:
         except:
             dmg_dice = int(dmg_parts[1])
             dmg_add = 0
-        
+ 
         dmg_num = int(dmg_parts[0])
-            
+
         damage_output = damage_stat+": "
         damage_raw = 0
         for i in range(0, dmg_num):
@@ -79,14 +156,28 @@ class Character:
         damage_output += " = "+str(damage_raw)+" | "+str(sp)+" SP | "+str(btm)+" BTM"
 
         if damage_raw > sp:
-            
 
-            damage = damage_raw - sp - btm
-            
+            damage = damage_raw - sp
+
+
+            if bodypart == "head":
+                damage *= 2
+
+            damage -= btm
+
             if damage < 1:
                 damage = 1
+                self.blunt_dmg += 1
             self.armor[armor_zone]["SP"] -= 1
             self.hp -= damage
+
+
+
+            self.UpdateWoundState()
+
+            if self.state == "active":
+                stun_roll_msg = self.StunSave()+"\n"
+                
         else:
             damage = 0
 
@@ -94,7 +185,7 @@ class Character:
 
             # СПАСБРОСКИ
 
-        return damage, damage_output, self.hp
+        return damage, damage_output, stun_roll_msg
 
 
     def Shoot(self, target_name, distance, firemode="s", burst_size=0, preroll=0, bodypart="random", cm=0):
@@ -103,6 +194,9 @@ class Character:
         # f - full auto
 
         target = charlist[target_name]
+
+        if self.state != "active":
+            return "{} is {} and can't shoot\n".format(self.name, self.state)
 
         if self.weapons[self.current_weapon]["mag"] > 0:
 
@@ -150,7 +244,7 @@ class Character:
                     .format(WEAPONS[self.current_weapon]["Range"], distance, difficulty)
 
                 message += "REF({}) + {}({}) - EV({}) + WA({}) + d10({})"\
-                    .format(self.stats["REF"], weapontype, self.skills["REF"][weapontype], self.EV, WEAPONS[self.current_weapon]["WA"], diceroll)
+                    .format(self.GetStat("REF"), weapontype, self.skills["REF"][weapontype], self.EV, WEAPONS[self.current_weapon]["WA"], diceroll)
 
                 if bodypart != "random":
                     bodypart_mod = -4
@@ -158,7 +252,7 @@ class Character:
                 else:
                     bodypart_mod = 0
 
-                result = self.stats["REF"] + self.skills["REF"][weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] - self.EV + bodypart_mod
+                result = self.GetStat("REF") + self.skills["REF"][weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] - self.EV + bodypart_mod
 
                 self.weapons[self.current_weapon]["mag"] -= 1
 
@@ -180,8 +274,8 @@ class Character:
                         elif bodypart_roll >= 9 and bodypart_roll <= 10:
                             bodypart = "l_leg"
                     
-                    damage, damage_output, target_health = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"])
-                    message += "Dealt {} damage to the {} [{}], target HP is {}\n".format(damage, bodypart, damage_output, target_health)
+                    damage, damage_output, stun_roll_msg = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"])
+                    message += "Dealt {} damage to the {} [{}], target HP is {} ({})\n{}".format(damage, bodypart, damage_output, target.hp, target.state, stun_roll_msg)
                 else:
                     message += "Missed\n"
 
@@ -203,18 +297,28 @@ for char in character_files:
 Bob = charlist["Bob"]
 Alice = charlist["Alice"]
 
-print(Bob.GetInfo())
+print(Alice.GetInfo())
 
 Bob.SwitchWeapon("X-9mm")
 
 print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
 print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
 print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
-print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
-print(Bob.Shoot("Alice", 5, preroll=9))
-print(Bob.Shoot("Alice", 15))
+#print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
+
+print(Alice.Shoot("Bob", 1))
+
+#print(Bob.Shoot("Alice", 5, preroll=9))
+#print(Bob.Shoot("Alice", 15))
 
 print(Alice.GetInfo())
+print(Bob.GetInfo())
+print(Alice.GetStat("REF"))
+
+print(Alice.StunSave())
+print(Alice.StunSave())
+print(Alice.StunSave())
+print(Alice.StunSave())
 
 Bob.SwitchWeapon("FN-RAL")
 

@@ -1,7 +1,10 @@
 {
 	"name": "Alice",
 	"role": "Solo",
+	"state": "active",
 	"hp": 40,
+	"blunt_dmg": 0,
+	"wounded": "no",
 	"EV": 1,
 	"armor": {
 		"head": {
