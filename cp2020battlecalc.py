@@ -172,7 +172,7 @@ class Character:
         return success, message
 
 
-    def Damage(self, bodypart, damage_stat, nosaveroll=False):
+    def Damage(self, bodypart, damage_stat, ammo_type, nosaveroll=False):
         message = ""
         severed = False
         armor_zone = bodypart
@@ -200,16 +200,22 @@ class Character:
         damage_output += str(dmg_add)
 
         sp = self.armor[armor_zone]["SP"]
+        effective_sp = sp
+
+        if ammo_type == "ap":
+            effective_sp -= int(sp/2)
 
         damage_output += " = "+str(damage_raw)+" | "+str(sp)+" SP | "+str(btm)+" BTM"
 
-        if damage_raw > sp:
+        if damage_raw > effective_sp:
 
-            damage = damage_raw - sp
-
+            damage = damage_raw - effective_sp
 
             if bodypart == "head":
                 damage *= 2
+
+            if ammo_type == "ap":
+                damage -= int(damage/2)
 
             damage -= btm
 
@@ -281,13 +287,16 @@ class Character:
 
         if self.weapons[self.current_weapon]["mag"] > 0:
 
+            ammo_type = self.weapons[self.current_weapon]["ammotype"]
+
             if bodypart != "random":
                 bodypart_message = "'s {}".format(bodypart)
             else:
                 bodypart_message = ""
 
-            message = "{} firing at {}{} with {} ({}) [{}/{} rds]"\
-                .format(self.name, target_name, bodypart_message, self.current_weapon, firemode, self.weapons[self.current_weapon]["mag"], WEAPONS[self.current_weapon]["Shots"])
+            message = "{} firing at {}{} with {} ({}, {}) [{}/{} rds]"\
+                .format(self.name, target_name, bodypart_message, self.current_weapon, firemode, \
+                    ammo_type, self.weapons[self.current_weapon]["mag"], WEAPONS[self.current_weapon]["Shots"])
 
             if preroll == 0:
                 diceroll = dice(10)
@@ -350,7 +359,7 @@ class Character:
                             message += "{}'s {} is severed, rerolling bodypart\n".format(target.name, bodypart)
                             bodypart = rollBodypart()
 
-                    damage, damage_output, damage_report = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"], nosaveroll)
+                    damage, damage_output, damage_report = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"], ammo_type, nosaveroll)
                     message += "Dealt {} damage to the {} [{}], target HP is {} ({}; {})\n".format(damage, bodypart, damage_output, target.hp, target.state, target.wounded)
                     message += damage_report
                 else:
