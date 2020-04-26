@@ -28,7 +28,7 @@ def rollBodypart():
 
 class Character:
 
-    def __init__(self, name, role, state, wounded, hp, blunt_dmg, EV, armor, stats, skills, weapons, ammo, notes):
+    def __init__(self, name, role, armor, stats, skills, weapons, ammo, state="active", wounded="no", hp=40, blunt_dmg=0, EV=0, notes=""):
         self.name = name
         self.role = role
         self.state = state
@@ -96,8 +96,10 @@ class Character:
 
 
     def GetInfo(self):
-        message = "{} [{}], {}, HP {}, {} wounds\n".format(self.name, self.role, self.state, self.hp, self.wounded)
-        message += re.sub("{|'|}", "", re.sub("},", "\n", "Armor:\n {}\n".format(self.armor)))
+        message = "{} [{}], {}, HP {}, {} wounds {}".format(self.name, self.role, self.state, self.hp, self.wounded, self.notes)
+        if self.blunt_dmg > 0:
+            message += " {} blunt damage".format(self.blunt_dmg)
+        message += re.sub("{|'|}", "", re.sub("},", "\n", "\nArmor:\n {}\n".format(self.armor)))
         message += "Equipped with {} [{}/{} rds]\n"\
             .format(self.current_weapon, self.weapons[self.current_weapon]["mag"], WEAPONS[self.current_weapon]["Shots"])
 
@@ -170,8 +172,9 @@ class Character:
         return success, message
 
 
-    def Damage(self, bodypart, damage_stat):
+    def Damage(self, bodypart, damage_stat, nosaveroll=False):
         message = ""
+        severed = False
         armor_zone = bodypart
 
         btm = self.GetBTM()
@@ -219,8 +222,15 @@ class Character:
             self.UpdateWoundState()
 
             if damage > 8 and bodypart != "torso":
+                message += "More than 8 damage to limb!\n"
+                severed = True
+
+            if nosaveroll:
+                return damage, damage_output, message
+
+            if severed:
                 stun_roll_success, stun_roll_msg = self.StunSave()
-                message += "More than 8 damage to limb! "+stun_roll_msg
+                message += " "+stun_roll_msg
                 if stun_roll_success == False:
                     message += "Stun roll failed, {} is severed. ".format(bodypart)
                     self.notes += "{} severed;".format(bodypart)
@@ -259,7 +269,7 @@ class Character:
         return damage, damage_output, message
 
 
-    def Shoot(self, target_name, distance, firemode="s", burst_size=0, preroll=0, bodypart="random", cm=0):
+    def Shoot(self, target_name, distance, firemode="s", burst_size=0, preroll=0, bodypart="random", cm=0, nosaveroll=False):
         # s - single fire
         # b - burst fire
         # f - full auto
@@ -340,8 +350,8 @@ class Character:
                             message += "{}'s {} is severed, rerolling bodypart\n".format(target.name, bodypart)
                             bodypart = rollBodypart()
 
-                    damage, damage_output, damage_report = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"])
-                    message += "Dealt {} damage to the {} [{}], target HP is {} ({})\n".format(damage, bodypart, damage_output, target.hp, target.state)
+                    damage, damage_output, damage_report = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"], nosaveroll)
+                    message += "Dealt {} damage to the {} [{}], target HP is {} ({}; {})\n".format(damage, bodypart, damage_output, target.hp, target.state, target.wounded)
                     message += damage_report
                 else:
                     message += "Missed\n"
@@ -366,9 +376,9 @@ Alice = charlist["Alice"]
 
 print(Alice.GetInfo())
 
-#Bob.SwitchWeapon("X-9mm")
+Bob.SwitchWeapon("H9")
 
-print(Bob.Shoot("Alice", 1))
+print(Bob.Shoot("Alice", 1, nosaveroll=True))
 print(Bob.Shoot("Alice", 1))
 print(Bob.Shoot("Alice", 1))
 print(Bob.Shoot("Alice", 1))

@@ -59,18 +59,18 @@
         },
 
         "weapons": {
-                "FN-RAL": {
+                "MDR-C": {
                         "mag": 30,
                         "ammotype": "fmj"
                 },
-                "X-9mm": {
+                "H9": {
                         "mag": 12,
                         "ammotype": "jhp"
                 }
         },
 
         "ammo": {
-                "7.62": 120,
-                "9mm": 20
+                "5.56": 120,
+                "9x19": 20
         }
 }

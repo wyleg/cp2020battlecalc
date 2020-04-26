@@ -1,22 +1,63 @@
 {
-"FN-RAL": {
+"MDR-C": {
         "Type": "Rifle",
+        "WA": 0,
+        "Damage": "5D6",
+	"Ammo": "5.56",
+        "Shots": 30,
+        "ROF": 35,
+        "Rel": "UR",
+        "Range": 200
+},
+"L-66": {
+        "Type": "Rifle",
+        "WA": 1,
+        "Damage": "7D6",
+	"Ammo": ".338",
+        "Shots": 6,
+        "ROF": 1,
+        "Rel": "ST",
+        "Range": 800
+},
+"Origin 12": {
+        "Type": "Shotgun",
         "WA": -1,
-        "Damage": "6D6",
-	"Ammo": "7.62",
+        "Damage": "4D6",
+	"Ammo": "12g",
+        "Shots": 5,
+        "ROF": 3,
+        "Rel": "UR",
+        "Range": 100
+},
+"PP-451": {
+        "Type": "SMG",
+        "WA": -1,
+        "Damage": "2D6+1",
+	"Ammo": "9x19",
         "Shots": 30,
         "ROF": 30,
-        "Rel": "VR",
-        "Range": 400
+        "Rel": "ST",
+        "Range": 100
 },
-"X-9mm":{
+"H9":{
+        "Type": "Pistol",
+        "WA": 1,
+        "Damage": "2D6+1",
+	"Ammo": "9x19",
+        "Shots": 12,
+        "ROF": 3,
+        "Rel": "ST",
+        "Range": 50
+},
+"RKS 44":{
         "Type": "Pistol",
         "WA": 0,
-        "Damage": "2D6+1",
-	"Ammo": "9mm",
-        "Shots": 12,
-        "ROF": 2,
+        "Damage": "4D6",
+	"Ammo": ".44 Magnum",
+        "Shots": 6,
+        "ROF": 1,
         "Rel": "ST",
         "Range": 50
 }
+
 }
