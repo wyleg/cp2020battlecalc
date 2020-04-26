@@ -120,6 +120,17 @@ class Character:
 
         return self.stats[stat] - woundMod(stat)
 
+    def SkillStatValue(self, skill):
+        if skill == "awrn":
+            skill = "Awareness/Notice"
+        for stat in list(SKILLS):
+            if skill in SKILLS[stat]:
+                stat_value = self.GetStat(stat)
+                result = self.skills[skill] + stat_value
+
+                return result
+
+
     def StunSave(self):
         success = False
         outcome = ""
@@ -326,7 +337,6 @@ class Character:
                     else:
                         difficulty = 15
 
-
                 # ЕСЛИ НЕТ СКИЛЛА НА СТРЕЛЬБУ ИЗ НУЖНОЙ ПУШКИ
 
                 weapontype = WEAPONS[self.current_weapon]["Type"]
@@ -334,7 +344,7 @@ class Character:
                     .format(WEAPONS[self.current_weapon]["Range"], distance, difficulty)
 
                 message += "REF({}) + {}({}) - EV({}) + WA({}) + d10({})"\
-                    .format(self.GetStat("REF"), weapontype, self.skills["REF"][weapontype], self.EV, WEAPONS[self.current_weapon]["WA"], diceroll)
+                    .format(self.GetStat("REF"), weapontype, self.skills[weapontype], self.EV, WEAPONS[self.current_weapon]["WA"], diceroll)
 
                 if bodypart != "random":
                     if "{} severed".format(bodypart) in target.notes:
@@ -346,7 +356,7 @@ class Character:
                 else:
                     bodypart_mod = 0
 
-                result = self.GetStat("REF") + self.skills["REF"][weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] - self.EV + bodypart_mod
+                result = self.GetStat("REF") + self.skills[weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] - self.EV + bodypart_mod
 
                 self.weapons[self.current_weapon]["mag"] -= 1
 
@@ -372,6 +382,9 @@ class Character:
 with open("weapons.json", "r") as weapons_file:
     WEAPONS = json.loads(weapons_file.read())
 
+with open("skills.json", "r") as skills_file:
+    SKILLS = json.loads(skills_file.read())
+
 character_files = os.listdir("characters")
 
 charlist = {}
@@ -385,6 +398,8 @@ Alice = charlist["Alice"]
 print(Alice.GetInfo())
 
 Bob.SwitchWeapon("H9")
+
+print(Alice.SkillStatValue("awrn"))
 
 print(Bob.Shoot("Alice", 1, nosaveroll=True))
 print(Bob.Shoot("Alice", 1))

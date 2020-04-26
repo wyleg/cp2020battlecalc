@@ -1,0 +1,4 @@
+{
+"REF": [ "Rifle", "Pistol", "SMG", "Shotgun" ],
+"INT": [ "Awareness/Notice" ]
+}

@@ -46,16 +46,10 @@
         },
 
         "skills": {
-                "Role": {
-                    "Combat Sense": 6
-                    },
-                "REF": {
+                    "Combat Sense": 6,
                     "Rifle": 6,
-		    "Pistol": 6
-                    },
-                "INT": {
+		    "Pistol": 6,
                     "Awareness/Notice": 6
-                    }
         },
 
         "weapons": {
