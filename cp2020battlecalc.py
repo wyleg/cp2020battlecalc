@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import random, json, os, re
+import random, json, os, re, sys
 
 def dice(num, not_explode=False):
     result = random.randint(1,num)
@@ -382,7 +382,6 @@ for char in character_files:
 
 Bob = charlist["Bob"]
 Alice = charlist["Alice"]
-
 print(Alice.GetInfo())
 
 Bob.SwitchWeapon("H9")
@@ -394,16 +393,47 @@ print(Bob.Shoot("Alice", 1))
 print(Bob.Shoot("Alice", 1))
 print(Bob.Shoot("Alice", 1))
 print(Bob.Shoot("Alice", 1))
-print(Bob.Shoot("Alice", 1))
-print(Bob.Shoot("Alice", 1))
-#print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
-#print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
-
-print(Alice.Shoot("Bob", 1))
-
-#print(Bob.Shoot("Alice", 5, preroll=9))
-#print(Bob.Shoot("Alice", 15))
-
+#print(Bob.Shoot("Alice", 1))
+#print(Bob.Shoot("Alice", 1))
+##print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
+##print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
+#
+#print(Alice.Shoot("Bob", 1))
+#
+##print(Bob.Shoot("Alice", 5, preroll=9))
+##print(Bob.Shoot("Alice", 15))
+#
 print(Alice.GetInfo())
 print(Bob.GetInfo())
 
+if len(sys.argv) > 1:
+    if sys.argv[1] == "getinfo":
+        character = charlist[sys.argv[2]]
+        print(character.GetInfo())
+
+    if sys.argv[1] == "shoot":
+        character = charlist[sys.argv[2]]
+        target = sys.argv[3]
+        distance = int(sys.argv[4])
+        preroll = 0
+        nosaveroll = False
+        firemode = "s"
+        bodypart = "random"
+        burst_size = 0
+        cm = 0
+        for arg in sys.argv:
+            if re.match("^pr=.*", arg):
+                preroll = int(re.sub("pr=","",arg))
+            elif re.match("^cm=.*", arg):
+                cm = int(re.sub("cm=","",arg))
+            elif arg == "ns":
+                nosaveroll = True
+            elif re.match("^f=.*", arg):
+                firemode = "f"
+                burst_size = int(re.sub("f=","",arg))
+            elif arg == "b":
+                firemode = "b"
+            elif re.match("^bp=.*", arg):
+                bodypart = re.sub("bp=","",arg)
+
+        print(character.Shoot(target, distance, firemode, burst_size, preroll, bodypart, cm, nosaveroll))
