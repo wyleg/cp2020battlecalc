@@ -26,6 +26,21 @@ def rollBodypart():
 
     return bodypart
 
+
+def skillShortcut(skill):
+    if skill == "awrn":
+        skill = "Awareness/Notice"
+    return skill
+
+def getStatBySkill(skill):
+    skill = skillShortcut(skill)
+    resp_stat = ""
+    for stat in list(SKILLS):
+        if skill in SKILLS[stat]:
+            resp_stat = stat
+    return resp_stat
+
+
 class Character:
 
     def __init__(self, name, role, armor, stats, skills, weapons, ammo, state="active", wounded="no", hp=40, blunt_dmg=0, EV=0, notes=""):
@@ -105,7 +120,7 @@ class Character:
 
         return message
 
-    def GetStat(self, stat):
+    def GetStatValue(self, stat):
         def woundMod(stat):
             stat_mod = 0
             if stat == "CL" or stat == "REF" or stat == "MA" or stat == "INT":
@@ -121,14 +136,50 @@ class Character:
         return self.stats[stat] - woundMod(stat)
 
     def SkillStatValue(self, skill):
-        if skill == "awrn":
-            skill = "Awareness/Notice"
-        for stat in list(SKILLS):
-            if skill in SKILLS[stat]:
-                stat_value = self.GetStat(stat)
-                result = self.skills[skill] + stat_value
+        result = 0
+        skill = skillShortcut(skill)
 
-                return result
+        stat = getStatBySkill(skill)
+        stat_value = self.GetStatValue(stat)
+        skill_value = self.skills[skill]
+        result = skill_value + stat_value
+
+        return result, stat
+
+    def SkillRoll(self, skill, cm=0):
+        skill = skillShortcut(skill)
+        value, stat = self.SkillStatValue(skill)
+        diceroll = dice(10)
+
+        result = value + diceroll + cm
+
+        message = "{} rolls {} check: {} {} + skill {} + d10({}) + modifier {} = {}\n".\
+            format(self.name, skill, stat, self.stats[stat], self.skills[skill], diceroll, cm, result)
+
+        return result, message, diceroll
+
+
+    def SkillCheck(self, skill, difficulty, cm=0):
+        skill = skillShortcut(skill)
+        success = False
+        outcome = "failed"
+        message = ""
+
+        roll, message, diceroll = self.SkillRoll(skill, cm)
+        message = message.rstrip("\n")
+
+        if diceroll == 1:
+            message = "CRIT FAIL\n"
+        else:
+            if roll >= difficulty:
+                success = True
+                outcome = "success"
+            
+            message += " vs {} difficulty  - {}\n".\
+                format(difficulty, outcome)
+        
+        return success, message
+            
 
 
     def StunSave(self):
@@ -146,7 +197,7 @@ class Character:
                 "mortal 5": 8,
                 "mortal 6": 9 }
 
-        treshhold = self.GetStat("BT") - stun_mod[self.wounded]
+        treshhold = self.GetStatValue("BT") - stun_mod[self.wounded]
         diceroll = dice(10, True)
 
         if diceroll <= treshhold:
@@ -157,7 +208,7 @@ class Character:
             outcome = "failed"
 
         message = "{} rolls stun save: {} vs d10({}) (BT {}, stun_mod {}) - {}\n"\
-            .format(self.name, treshhold, diceroll, self.GetStat("BT"), stun_mod[self.wounded], outcome)
+            .format(self.name, treshhold, diceroll, self.GetStatValue("BT"), stun_mod[self.wounded], outcome)
 
         return success, message
 
@@ -167,7 +218,7 @@ class Character:
         else:
             mortal_mod = 0
 
-        treshhold = self.GetStat("BT") - mortal_mod
+        treshhold = self.GetStatValue("BT") - mortal_mod
         diceroll = dice(10, True)
 
         if diceroll <= treshhold:
@@ -178,7 +229,7 @@ class Character:
             outcome = "failed"
 
         message = "{} rolls death save: {} vs d10({}) (BT {}, mortal_mod {}) - {}\n"\
-            .format(self.name, treshhold, diceroll, self.GetStat("BT"), mortal_mod, outcome)
+            .format(self.name, treshhold, diceroll, self.GetStatValue("BT"), mortal_mod, outcome)
 
         return success, message
 
@@ -344,7 +395,7 @@ class Character:
                     .format(WEAPONS[self.current_weapon]["Range"], distance, difficulty)
 
                 message += "REF({}) + {}({}) - EV({}) + WA({}) + d10({})"\
-                    .format(self.GetStat("REF"), weapontype, self.skills[weapontype], self.EV, WEAPONS[self.current_weapon]["WA"], diceroll)
+                    .format(self.GetStatValue("REF"), weapontype, self.skills[weapontype], self.EV, WEAPONS[self.current_weapon]["WA"], diceroll)
 
                 if bodypart != "random":
                     if "{} severed".format(bodypart) in target.notes:
@@ -356,7 +407,7 @@ class Character:
                 else:
                     bodypart_mod = 0
 
-                result = self.GetStat("REF") + self.skills[weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] - self.EV + bodypart_mod
+                result = self.GetStatValue("REF") + self.skills[weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] - self.EV + bodypart_mod
 
                 self.weapons[self.current_weapon]["mag"] -= 1
 
@@ -420,6 +471,8 @@ print(Bob.Shoot("Alice", 1))
 #
 print(Alice.GetInfo())
 print(Bob.GetInfo())
+
+print(Alice.SkillCheck("awrn", 15))
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "getinfo":
