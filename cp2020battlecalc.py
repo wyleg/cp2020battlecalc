@@ -116,7 +116,7 @@ def writeData():
     for char in list(charlist):
         char_dict = writeCharDataToDict(char)
         with open("rounds/{}/{}".format(cur_round, char), "w") as char_file:
-            char_file.write(json.dumps(char_dict))
+            char_file.write(json.dumps(char_dict, indent=3))
 
 def writeCharDataToDict(char_name):
     character = charlist[char_name]
