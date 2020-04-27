@@ -48,6 +48,7 @@
         "skills": {
                     "Combat Sense": 6,
                     "Rifle": 6,
+                    "Shotgun": 6,
 		    "Pistol": 6,
                     "Awareness/Notice": 6
         },
@@ -60,11 +61,16 @@
                 "H9": {
                         "mag": 12,
                         "ammotype": "ap"
-                }
+                },
+		"Origin 12 slug": {
+			"mag": 5,
+			"ammotype": "slug"
+		}
         },
 
         "ammo": {
-                "5.56": 120,
-                "9x19": 20
+                "5.56": { "fmj": 90, "ap": 30 },
+                "9x19": { "fmj": 12, "ap": 12 },
+		"12g": { "buck": 5, "slug": 5 }
         }
 }

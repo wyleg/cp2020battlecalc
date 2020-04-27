@@ -238,6 +238,7 @@ class Character:
         message = ""
         severed = False
         armor_zone = bodypart
+        armor_type = self.armor[armor_zone]["type"]
 
         btm = self.GetBTM()
 
@@ -264,7 +265,7 @@ class Character:
         sp = self.armor[armor_zone]["SP"]
         effective_sp = sp
 
-        if ammo_type == "ap":
+        if ammo_type == "ap" or ammo_type == "slug":
             effective_sp -= int(sp/2)
 
         damage_output += " = "+str(damage_raw)+" | "+str(sp)+" SP | "+str(btm)+" BTM"
@@ -276,7 +277,7 @@ class Character:
             if bodypart == "head":
                 damage *= 2
 
-            if ammo_type == "ap":
+            if ammo_type == "ap" or ( ammo_type == "slug" and armor_type == "soft"):
                 damage -= int(damage/2)
 
             damage -= btm
@@ -448,7 +449,7 @@ Bob = charlist["Bob"]
 Alice = charlist["Alice"]
 print(Alice.GetInfo())
 
-Bob.SwitchWeapon("H9")
+Bob.SwitchWeapon("Origin 12 slug")
 
 print(Alice.SkillStatValue("awrn"))
 

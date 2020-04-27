@@ -29,6 +29,16 @@
         "Rel": "UR",
         "Range": 100
 },
+"Origin 12 slug": {
+        "Type": "Shotgun",
+        "WA": -1,
+        "Damage": "4D6+2",
+	"Ammo": "12g",
+        "Shots": 5,
+        "ROF": 3,
+        "Rel": "UR",
+        "Range": 100
+},
 "PP-451": {
         "Type": "SMG",
         "WA": -1,
