@@ -1,6 +1,79 @@
 #!/usr/bin/python3
 
 import random, json, os, re, sys
+from shutil import copyfile
+
+global charlist
+
+def getCurrentRound():
+    rounds = os.listdir("rounds")
+    rounds.sort()
+
+    cur_round = int(rounds[-1])
+    return cur_round
+
+def loadRoundData(c_round):
+    global charlist
+    character_files = os.listdir("rounds/{}".format(c_round))
+
+    for filename in character_files:
+        with open("rounds/{}/{}".format(c_round, filename), "r") as char_file:
+            char_json = json.loads(char_file.read())
+            char_name = char_json["name"]
+            charlist.update( { char_name: Character(**char_json) } )
+
+def getRoundInfo():
+    print("Round {}".format(cur_round))
+    print(list(charlist))
+
+def makeNextRound():
+    next_round = cur_round + 1
+    os.mkdir("rounds/"+str(next_round))
+    prev_round_chars = os.listdir("rounds/"+str(cur_round))
+    for char in prev_round_chars:
+        with open("rounds/{}/{}".format(cur_round, char), "r") as charsheet_file:
+            charsheet = json.loads(charsheet_file.read())
+            if charsheet["state"] != "dead":
+                copyfile("rounds/{}/{}".format(cur_round, char),"rounds/{}/{}".format(next_round, char))
+    print("Started new round {}".format(next_round))
+
+def shootParseArgs(arg_list):
+    if arg_list[1] in list(charlist):
+        character = charlist[arg_list[1]]
+    else:
+        print("No such character in this round")
+        return
+    if arg_list[2] in list(charlist):
+        target = charlist[arg_list[2]]
+    else:
+        print("No such target in this round")
+        return
+    distance = int(arg_list[3])
+    preroll = 0
+    nosaveroll = False
+    firemode = "s"
+    bodypart = "random"
+    burst_size = 0
+    cm = 0
+    for arg in arg_list:
+        if re.match("^pr=.*", arg):
+            preroll = int(re.sub("pr=","",arg))
+        elif re.match("^cm=.*", arg):
+            cm = int(re.sub("cm=","",arg))
+        elif arg == "ns":
+            nosaveroll = True
+        elif re.match("^f=.*", arg):
+            firemode = "f"
+            burst_size = int(re.sub("f=","",arg))
+        elif arg == "b":
+            firemode = "b"
+        elif re.match("^bp=.*", arg):
+            bodypart = re.sub("bp=","",arg)
+    print(character.Shoot(target, distance, firemode, burst_size, preroll, bodypart, cm, nosaveroll))
+    save_results = input("Write results? y/n: ")
+
+    if save_results == "y":
+        writeData()
 
 def dice(num, not_explode=False):
     result = random.randint(1,num)
@@ -26,7 +99,6 @@ def rollBodypart():
 
     return bodypart
 
-
 def skillShortcut(skill):
     if skill == "awrn":
         skill = "Awareness/Notice"
@@ -40,6 +112,30 @@ def getStatBySkill(skill):
             resp_stat = stat
     return resp_stat
 
+def writeData():
+    for char in list(charlist):
+        char_dict = writeCharDataToDict(char)
+        with open("rounds/{}/{}".format(cur_round, char), "w") as char_file:
+            char_file.write(json.dumps(char_dict))
+
+def writeCharDataToDict(char_name):
+    character = charlist[char_name]
+    char_dict = {}
+    char_dict.update( { "name": character.name,
+        "role": character.role,
+        "state": character.state,
+        "wounded": character.wounded,
+        "notes": character.notes,
+        "hp": character.hp,
+        "blunt_dmg": character.blunt_dmg,
+        "EV": character.EV,
+        "armor": character.armor,
+        "stats": character.stats,
+        "skills": character.skills,
+        "weapons": character.weapons,
+        "ammo": character.ammo
+        } )
+    return char_dict
 
 class Character:
 
@@ -99,6 +195,9 @@ class Character:
             self.wounded = "mortal 5"
         elif dmg >= 37 and dmg <= 40:
             self.wounded = "mortal 6"
+
+        if "severed" in self.notes and not "mortal" in self.wounded:
+            self.wounded = "mortal 0"
         
         if dmg > 40:
             self.state = "dead"
@@ -291,11 +390,11 @@ class Character:
             self.UpdateWoundState()
 
             if damage > 8 and bodypart != "torso":
-                message += "More than 8 damage to limb!\n"
+                message += "More than 8 damage to limb!"
                 severed = True
 
             if nosaveroll:
-                return damage, damage_output, message
+                return damage, damage_output, message+"\n"
 
             if severed:
                 stun_roll_success, stun_roll_msg = self.StunSave()
@@ -305,6 +404,7 @@ class Character:
                     self.notes += "{} severed;".format(bodypart)
                     if bodypart == "head":
                         self.state = "dead"
+                        return damage, damage_output, message+"\n"
                     else:
                         death_save_success, death_save_msg = self.DeathSave()
                         if not death_save_success:
@@ -323,6 +423,8 @@ class Character:
                     return damage, damage_output, message
 
                 message += death_save_msg
+
+            self.UpdateWoundState()
 
             if self.state == "active":
                 stun_roll_success, stun_roll_msg = self.StunSave()
@@ -343,7 +445,10 @@ class Character:
         # b - burst fire
         # f - full auto
 
-        target = charlist[target_name]
+        if type(target_name) == str:
+            target = charlist[target_name]
+        elif type(target_name) == Character:
+            target = target_name
 
         if self.state != "active":
             return "{} is {} and can't shoot\n".format(self.name, self.state)
@@ -358,7 +463,7 @@ class Character:
                 bodypart_message = ""
 
             message = "{} firing at {}{} with {} ({}, {}) [{}/{} rds]"\
-                .format(self.name, target_name, bodypart_message, self.current_weapon, firemode, \
+                .format(self.name, target.name, bodypart_message, self.current_weapon, firemode, \
                     ammo_type, self.weapons[self.current_weapon]["mag"], WEAPONS[self.current_weapon]["Shots"])
 
             if preroll == 0:
@@ -430,6 +535,8 @@ class Character:
                 message += "Rounds left in mag: {}\n".format(self.weapons[self.current_weapon]["mag"])
             return message
 
+    # end of Character class
+
 
 with open("weapons.json", "r") as weapons_file:
     WEAPONS = json.loads(weapons_file.read())
@@ -437,72 +544,47 @@ with open("weapons.json", "r") as weapons_file:
 with open("skills.json", "r") as skills_file:
     SKILLS = json.loads(skills_file.read())
 
-character_files = os.listdir("characters")
-
 charlist = {}
 
-for char in character_files:
-    with open("characters/" + char, "r") as char_file:
-        charlist.update( { char: Character(**json.loads(char_file.read())) } )
+cur_round = getCurrentRound()
+loadRoundData(cur_round)
 
-Bob = charlist["Bob"]
-Alice = charlist["Alice"]
-print(Alice.GetInfo())
+if len(sys.argv) == 1:
+    print("Round {}".format(cur_round))
+    while True:
+        cmd = input("> ")
+        if cmd == "exit":
+            break
+        if cmd == "help":
+            print("Commands:\n\
+    getroundinfo\n\
+    getcharinfo <character>\n\
+    nextround\n\
+    shoot <character> <target> <distance> [preroll=<number>] [ns] [cm=<modifier>] [f=<fullauto_burst_size>|b|s] [bp=<bodypart>]\n")
+        elif "getcharinfo" in cmd:
+            character = charlist[re.split(" ", cmd)[1]]
+            print(character.GetInfo())
+        elif cmd == "getroundinfo":
+            getRoundInfo()
+        elif "shoot" in cmd:
+            arg_list = re.split(" ",cmd)
+            shootParseArgs(arg_list)
+        elif cmd == "nextround":
+            makeNextRound()
 
-Bob.SwitchWeapon("Origin 12 slug")
+else:
+    print("Round {}".format(cur_round))
+    if sys.argv[1] == "nextround":
+        makeNextRound()
 
-print(Alice.SkillStatValue("awrn"))
-
-print(Bob.Shoot("Alice", 1, nosaveroll=True))
-print(Bob.Shoot("Alice", 1))
-print(Bob.Shoot("Alice", 1))
-print(Bob.Shoot("Alice", 1))
-print(Bob.Shoot("Alice", 1))
-print(Bob.Shoot("Alice", 1))
-print(Bob.Shoot("Alice", 1))
-#print(Bob.Shoot("Alice", 1))
-#print(Bob.Shoot("Alice", 1))
-##print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
-##print(Bob.Shoot("Alice", 1, bodypart="r_leg"))
-#
-#print(Alice.Shoot("Bob", 1))
-#
-##print(Bob.Shoot("Alice", 5, preroll=9))
-##print(Bob.Shoot("Alice", 15))
-#
-print(Alice.GetInfo())
-print(Bob.GetInfo())
-
-print(Alice.SkillCheck("awrn", 15))
-
-if len(sys.argv) > 1:
-    if sys.argv[1] == "getinfo":
+    if sys.argv[1] == "getcharinfo":
         character = charlist[sys.argv[2]]
         print(character.GetInfo())
 
-    if sys.argv[1] == "shoot":
-        character = charlist[sys.argv[2]]
-        target = sys.argv[3]
-        distance = int(sys.argv[4])
-        preroll = 0
-        nosaveroll = False
-        firemode = "s"
-        bodypart = "random"
-        burst_size = 0
-        cm = 0
-        for arg in sys.argv:
-            if re.match("^pr=.*", arg):
-                preroll = int(re.sub("pr=","",arg))
-            elif re.match("^cm=.*", arg):
-                cm = int(re.sub("cm=","",arg))
-            elif arg == "ns":
-                nosaveroll = True
-            elif re.match("^f=.*", arg):
-                firemode = "f"
-                burst_size = int(re.sub("f=","",arg))
-            elif arg == "b":
-                firemode = "b"
-            elif re.match("^bp=.*", arg):
-                bodypart = re.sub("bp=","",arg)
+    if sys.argv[1] == "getroundinfo":
+        getRoundInfo()
 
-        print(character.Shoot(target, distance, firemode, burst_size, preroll, bodypart, cm, nosaveroll))
+    if sys.argv[1] == "shoot":
+        arg_list = list(sys.argv)
+        arg_list.pop(0)
+        shootParseArgs(arg_list)
