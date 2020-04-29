@@ -49,6 +49,16 @@
         "Rel": "ST",
         "Range": 100
 },
+"KV-4": {
+        "Type": "SMG",
+        "WA": 0,
+        "Damage": "3D6",
+	"Ammo": ".45",
+        "Shots": 40,
+        "ROF": 45,
+        "Rel": "ST",
+        "Range": 100
+},
 "H9":{
         "Type": "Pistol",
         "WA": 1,

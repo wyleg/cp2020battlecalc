@@ -1,4 +1,5 @@
 {
-"REF": [ "Rifle", "Pistol", "SMG", "Shotgun" ],
-"INT": [ "Awareness/Notice" ]
+"REF": [ "Rifle", "Pistol", "SMG", "Athletics", "Boxing" ],
+"INT": [ "Awareness/Notice" ],
+"TECH": [ "First Aid", "Electronics", "Weapon Tech"  ]
 }

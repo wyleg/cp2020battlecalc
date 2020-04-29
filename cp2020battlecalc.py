@@ -38,6 +38,7 @@ def makeNextRound():
     print("Started new round {}".format(next_round))
 
 def shootParseArgs(arg_list):
+    cover=""
     if arg_list[1] in list(charlist):
         character = charlist[arg_list[1]]
     else:
@@ -69,7 +70,7 @@ def shootParseArgs(arg_list):
             firemode = "b"
         elif re.match("^bp=.*", arg):
             bodypart = re.sub("bp=","",arg)
-    print(character.Shoot(target, distance, firemode, burst_size, preroll, bodypart, cm, nosaveroll))
+    print(character.Shoot(target, distance, firemode, cover, burst_size, preroll, bodypart, cm, nosaveroll))
     save_results = input("Write results? y/n: ")
 
     if save_results == "y":
@@ -112,6 +113,25 @@ def getStatBySkill(skill):
             resp_stat = stat
     return resp_stat
 
+def getDifficultyByRange(gun_name, distance):
+    if distance <= 1:
+        difficulty = 10
+    else:
+        gun_range = WEAPONS[gun_name]["Range"]
+        rd_ratio = distance / gun_range
+        if rd_ratio > 2:
+            difficulty = 100
+        elif rd_ratio > 1:
+            difficulty = 30
+        elif rd_ratio > 0.5:
+            difficulty = 25
+        elif rd_ratio > 0.25:
+            difficulty = 20
+        else:
+            difficulty = 15
+    return difficulty
+
+
 def writeData():
     for char in list(charlist):
         char_dict = writeCharDataToDict(char)
@@ -129,6 +149,7 @@ def writeCharDataToDict(char_name):
         "hp": character.hp,
         "blunt_dmg": character.blunt_dmg,
         "EV": character.EV,
+        "current_weapon": character.current_weapon,
         "armor": character.armor,
         "stats": character.stats,
         "skills": character.skills,
@@ -139,7 +160,7 @@ def writeCharDataToDict(char_name):
 
 class Character:
 
-    def __init__(self, name, role, armor, stats, skills, weapons, ammo, state="active", wounded="no", hp=40, blunt_dmg=0, EV=0, notes=""):
+    def __init__(self, name, role, armor, stats, skills, weapons, ammo, current_weapon="", state="active", wounded="no", hp=40, blunt_dmg=0, EV=0, notes=""):
         self.name = name
         self.role = role
         self.state = state
@@ -154,7 +175,10 @@ class Character:
         self.ammo = ammo
         self.notes = notes
 
-        self.current_weapon = list(weapons)[0]
+        if current_weapon == "":
+            self.current_weapon = list(weapons)[0]
+        else:
+            self.current_weapon = current_weapon
 
     def GetBTM(self):
         bt = self.stats["BT"]
@@ -220,6 +244,7 @@ class Character:
         return message
 
     def GetStatValue(self, stat):
+        EV = 0
         def woundMod(stat):
             stat_mod = 0
             if stat == "CL" or stat == "REF" or stat == "MA" or stat == "INT":
@@ -232,7 +257,10 @@ class Character:
                     stat_mod = int(2*self.stats["REF"]/3)
             return stat_mod
 
-        return self.stats[stat] - woundMod(stat)
+        if stat == "REF":
+            EV = self.EV
+
+        return self.stats[stat] - woundMod(stat) - EV
 
     def SkillStatValue(self, skill):
         result = 0
@@ -333,7 +361,7 @@ class Character:
         return success, message
 
 
-    def Damage(self, bodypart, damage_stat, ammo_type, nosaveroll=False):
+    def Damage(self, bodypart, damage_stat, ammo_type, cover="", nosaveroll=False):
         message = ""
         severed = False
         armor_zone = bodypart
@@ -376,7 +404,7 @@ class Character:
             if bodypart == "head":
                 damage *= 2
 
-            if ammo_type == "ap" or ( ammo_type == "slug" and armor_type == "soft"):
+            if ammo_type == "ap" or ( ammo_type == "slug" and ( armor_type == "soft" or armor_type == "no" ) ):
                 damage -= int(damage/2)
 
             damage -= btm
@@ -440,7 +468,7 @@ class Character:
         return damage, damage_output, message
 
 
-    def Shoot(self, target_name, distance, firemode="s", burst_size=0, preroll=0, bodypart="random", cm=0, nosaveroll=False):
+    def Shoot(self, target_name, distance, firemode="s", cover="", burst_size=0, preroll=0, bodypart="random", cm=0, nosaveroll=False):
         # s - single fire
         # b - burst fire
         # f - full auto
@@ -449,9 +477,35 @@ class Character:
             target = charlist[target_name]
         elif type(target_name) == Character:
             target = target_name
+        firemode_mod = 0
+        firemode_msg = ""
+
+
+        if bodypart != "random":
+            if "{} severed".format(bodypart) in target.notes:
+                message = "{}'s {} is already severed, choose another bodypart\n".format(target.name, bodypart)
+                return message
+
+        def calculateShotDamage(target, cover, bodypart, ammo_type):
+            message = ""
+            if bodypart == "random":
+                bodypart = rollBodypart()
+                while "{} severed".format(bodypart) in target.notes:
+                    message += "{}'s {} is severed, rerolling bodypart\n".format(target.name, bodypart)
+                    bodypart = rollBodypart()
+            damage, damage_output, damage_report = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"], ammo_type, cover, nosaveroll)
+            message += "Dealt {} damage to the {} [{}], target HP is {} ({}; {})\n".format(damage, bodypart, damage_output, target.hp, target.state, target.wounded)
+            message += damage_report
+
+            return message
+
 
         if self.state != "active":
             return "{} is {} and can't shoot\n".format(self.name, self.state)
+
+
+        if self.weapons[self.current_weapon]["mag"] < 3 and firemode == "b":
+            return "Not enough ammo for 3 round burst\n"
 
         if self.weapons[self.current_weapon]["mag"] > 0:
 
@@ -476,61 +530,48 @@ class Character:
             if diceroll == 1:
                 message += "CRIT FAIL\n"
             else:
-                # calculating difficulty by range
-                if distance <= 1:
-                    difficulty = 10
-                else:
-                    gun_range = WEAPONS[self.current_weapon]["Range"]
-                    rd_ratio = distance / gun_range
-                    if rd_ratio > 2:
-                        message += "Too far!\n"
-                        difficulty = 100
-                    elif rd_ratio > 1:
-                        difficulty = 30
-                    elif rd_ratio > 0.5:
-                        difficulty = 25
-                    elif rd_ratio > 0.25:
-                        difficulty = 20
-                    else:
-                        difficulty = 15
+                difficulty = getDifficultyByRange(self.current_weapon, distance)
 
                 # ЕСЛИ НЕТ СКИЛЛА НА СТРЕЛЬБУ ИЗ НУЖНОЙ ПУШКИ
+
+
+                if firemode == "b" and difficulty <= 20:
+                    firemode_mod = 3
+                    firemode_msg = " + 3 (burst fire)"
 
                 weapontype = WEAPONS[self.current_weapon]["Type"]
                 message += "Gun range: {}, distance to target: {}, difficulty: {}\n"\
                     .format(WEAPONS[self.current_weapon]["Range"], distance, difficulty)
 
-                message += "REF({}) + {}({}) - EV({}) + WA({}) + d10({})"\
-                    .format(self.GetStatValue("REF"), weapontype, self.skills[weapontype], self.EV, WEAPONS[self.current_weapon]["WA"], diceroll)
+
+                message += "REF({}) + {}({}) + WA({}) + d10({}){}"\
+                    .format(self.GetStatValue("REF"), weapontype, self.skills[weapontype], WEAPONS[self.current_weapon]["WA"], diceroll, firemode_msg)
 
                 if bodypart != "random":
-                    if "{} severed".format(bodypart) in target.notes:
-                        message = "{}'s {} is already severed, choose another bodypart\n".format(target.name, bodypart)
-                        return message
-
                     bodypart_mod = -4
                     message += " - bodypart(4)"
                 else:
                     bodypart_mod = 0
 
-                result = self.GetStatValue("REF") + self.skills[weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] - self.EV + bodypart_mod
-
-                self.weapons[self.current_weapon]["mag"] -= 1
-
+                result = self.GetStatValue("REF") + self.skills[weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] + bodypart_mod + firemode_mod
                 message += " = {}\n".format(result)
-              
-                if result > difficulty:
-                    if bodypart == "random":
-                        bodypart = rollBodypart()
-                        while "{} severed".format(bodypart) in target.notes:
-                            message += "{}'s {} is severed, rerolling bodypart\n".format(target.name, bodypart)
-                            bodypart = rollBodypart()
 
-                    damage, damage_output, damage_report = target.Damage(bodypart, WEAPONS[self.current_weapon]["Damage"], ammo_type, nosaveroll)
-                    message += "Dealt {} damage to the {} [{}], target HP is {} ({}; {})\n".format(damage, bodypart, damage_output, target.hp, target.state, target.wounded)
-                    message += damage_report
+                if result > difficulty:
+                    if firemode == "s":
+                        message += calculateShotDamage(target, cover, bodypart, ammo_type)
+
+                    elif firemode == "b":
+                        hit_count = dice(3)
+                        message += calculateShotDamage(target, cover, bodypart, ammo_type)
+                        hit_count -= 1
+                        bodypart = "random"
+                        for _ in range(0, hit_count):
+                            message += calculateShotDamage(target, cover, bodypart, ammo_type)
+                            self.weapons[self.current_weapon]["mag"] -= 1
+
                 else:
                     message += "Missed\n"
+                    self.weapons[self.current_weapon]["mag"] -= 1
 
                 message += "Rounds left in mag: {}\n".format(self.weapons[self.current_weapon]["mag"])
             return message
