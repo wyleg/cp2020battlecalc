@@ -421,7 +421,7 @@ class Character:
                 message += "More than 8 damage to limb!"
                 severed = True
 
-            if nosaveroll:
+            if nosaveroll or self.state == "dead":
                 return damage, damage_output, message+"\n"
 
             if severed:
@@ -559,15 +559,17 @@ class Character:
                 if result > difficulty:
                     if firemode == "s":
                         message += calculateShotDamage(target, cover, bodypart, ammo_type)
+                        self.weapons[self.current_weapon]["mag"] -= 1
 
                     elif firemode == "b":
                         hit_count = dice(3)
                         message += calculateShotDamage(target, cover, bodypart, ammo_type)
                         hit_count -= 1
+                        message += "{} more hits in burst\n".format(hit_count)
                         bodypart = "random"
                         for _ in range(0, hit_count):
                             message += calculateShotDamage(target, cover, bodypart, ammo_type)
-                            self.weapons[self.current_weapon]["mag"] -= 1
+                        self.weapons[self.current_weapon]["mag"] -= 3
 
                 else:
                     message += "Missed\n"
