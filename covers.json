@@ -1,0 +1,8 @@
+{
+	"sheetrock_wall": 5,
+	"stone_wall": 30,
+	"reinforced_concrete_wall": 25,
+	"concrete_block_wall": 10,
+	"wood_door": 5,
+	"steel_door": 20
+}
