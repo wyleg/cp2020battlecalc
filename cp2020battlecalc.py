@@ -70,6 +70,8 @@ def shootParseArgs(arg_list):
             firemode = "b"
         elif re.match("^bp=.*", arg):
             bodypart = re.sub("bp=","",arg)
+        elif re.match("^cvr=.*", arg):
+            cover = re.sub("cvr=","",arg)
     print(character.Shoot(target, distance, firemode, cover, burst_size, preroll, bodypart, cm, nosaveroll))
     save_results = input("Write results? y/n: ")
 
@@ -130,7 +132,6 @@ def getDifficultyByRange(gun_name, distance):
         else:
             difficulty = 15
     return difficulty
-
 
 def writeData():
     for char in list(charlist):
@@ -232,7 +233,6 @@ class Character:
         else:
             print("{} don't have that weapon in inventory".format(self.name))
 
-
     def GetInfo(self):
         message = "{} [{}], {}, HP {}, {} wounds {}".format(self.name, self.role, self.state, self.hp, self.wounded, self.notes)
         if self.blunt_dmg > 0:
@@ -285,7 +285,6 @@ class Character:
 
         return result, message, diceroll
 
-
     def SkillCheck(self, skill, difficulty, cm=0):
         skill = skillShortcut(skill)
         success = False
@@ -307,8 +306,6 @@ class Character:
         
         return success, message
             
-
-
     def StunSave(self):
         success = False
         outcome = ""
@@ -360,9 +357,10 @@ class Character:
 
         return success, message
 
-
     def Damage(self, bodypart, damage_stat, ammo_type, cover="", nosaveroll=False):
         message = ""
+        cover_sp = 0
+        effective_cover_sp = 0
         severed = False
         armor_zone = bodypart
         armor_type = self.armor[armor_zone]["type"]
@@ -388,6 +386,18 @@ class Character:
 
         damage_raw += dmg_add
         damage_output += str(dmg_add)
+
+        if cover != "":
+            cover_sp = COVERS[cover]
+            if ammo_type == "ap" or ammo_type == "slug":
+                effective_cover_sp = cover_sp - int(cover_sp/2)
+            else:
+                effective_cover_sp = cover_sp
+            damage_raw -= effective_cover_sp
+            if ammo_type == "ap":
+                damage_raw = damage_raw - int(damage_raw/2)
+            #message += "Damage reduced to {} by {} with SP {}\n".format(damage_raw, cover, cover_sp)
+            damage_output += " (hard cover {} SP)".format(cover_sp)
 
         sp = self.armor[armor_zone]["SP"]
         effective_sp = sp
@@ -479,8 +489,9 @@ class Character:
             target = target_name
         firemode_mod = 0
         firemode_msg = ""
+        effective_cover = ""
 
-
+        print(cover)
         if bodypart != "random":
             if "{} severed".format(bodypart) in target.notes:
                 message = "{}'s {} is already severed, choose another bodypart\n".format(target.name, bodypart)
@@ -552,23 +563,43 @@ class Character:
                     message += " - bodypart(4)"
                 else:
                     bodypart_mod = 0
+                    bodypart = rollBodypart()
+                    while "{} severed".format(bodypart) in target.notes:
+                        message += "{}'s {} is severed, rerolling bodypart\n".format(target.name, bodypart)
+                        bodypart = rollBodypart()
 
                 result = self.GetStatValue("REF") + self.skills[weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] + bodypart_mod + firemode_mod
                 message += " = {}\n".format(result)
 
                 if result > difficulty:
+                    if cover != '':
+                        add_cover = input("Hit {} in the {}, apply cover? (y/n) ".format(target.name, bodypart))
+                        if add_cover == "y":
+                            effective_cover = cover
+                        else:
+                            effective_cover = ""
+
                     if firemode == "s":
-                        message += calculateShotDamage(target, cover, bodypart, ammo_type)
+                        message += calculateShotDamage(target, effective_cover, bodypart, ammo_type)
                         self.weapons[self.current_weapon]["mag"] -= 1
 
                     elif firemode == "b":
                         hit_count = dice(3)
-                        message += calculateShotDamage(target, cover, bodypart, ammo_type)
+                        message += calculateShotDamage(target, effective_cover, bodypart, ammo_type)
                         hit_count -= 1
                         message += "{} more hits in burst\n".format(hit_count)
-                        bodypart = "random"
                         for _ in range(0, hit_count):
-                            message += calculateShotDamage(target, cover, bodypart, ammo_type)
+                            bodypart = rollBodypart()
+                            while "{} severed".format(bodypart) in target.notes:
+                                message += "{}'s {} is severed, rerolling bodypart\n".format(target.name, bodypart)
+                                bodypart = rollBodypart()
+                            if cover != '':
+                                add_cover = input("Hit {} in the {}, apply cover? (y/n) ".format(target.name, bodypart))
+                                if add_cover == "y":
+                                    effective_cover = cover
+                                else:
+                                    effective_cover = ""
+                            message += calculateShotDamage(target, effective_cover, bodypart, ammo_type)
                         self.weapons[self.current_weapon]["mag"] -= 3
 
                 else:
@@ -586,6 +617,9 @@ with open("weapons.json", "r") as weapons_file:
 
 with open("skills.json", "r") as skills_file:
     SKILLS = json.loads(skills_file.read())
+
+with open("covers.json", "r") as covers_file:
+    COVERS = json.loads(covers_file.read())
 
 charlist = {}
 
