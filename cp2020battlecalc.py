@@ -15,12 +15,12 @@ def getCurrentRound():
 def loadRoundData(c_round):
     global charlist
     character_files = os.listdir("rounds/{}".format(c_round))
-
     for filename in character_files:
-        with open("rounds/{}/{}".format(c_round, filename), "r") as char_file:
-            char_json = json.loads(char_file.read())
-            char_name = char_json["name"]
-            charlist.update( { char_name: Character(**char_json) } )
+        if not ".log" in filename:
+            with open("rounds/{}/{}".format(c_round, filename), "r") as char_file:
+                char_json = json.loads(char_file.read())
+                char_name = char_json["name"]
+                charlist.update( { char_name: Character(**char_json) } )
 
 def getRoundInfo():
     print("Round {}".format(cur_round))
@@ -39,17 +39,17 @@ def makeNextRound():
 
 def shootParseArgs(arg_list):
     cover=""
-    if arg_list[1] in list(charlist):
-        character = charlist[arg_list[1]]
+    if arg_list[0] in list(charlist):
+        character = charlist[arg_list[0]]
     else:
         print("No such character in this round")
         return
-    if arg_list[2] in list(charlist):
-        target = charlist[arg_list[2]]
+    if arg_list[0] in list(charlist):
+        target = charlist[arg_list[1]]
     else:
         print("No such target in this round")
         return
-    distance = int(arg_list[3])
+    distance = int(arg_list[2])
     preroll = 0
     nosaveroll = False
     firemode = "s"
@@ -150,6 +150,7 @@ def writeCharDataToDict(char_name):
         "hp": character.hp,
         "blunt_dmg": character.blunt_dmg,
         "EV": character.EV,
+        "initiative": character.initiative,
         "current_weapon": character.current_weapon,
         "armor": character.armor,
         "stats": character.stats,
@@ -159,9 +160,18 @@ def writeCharDataToDict(char_name):
         } )
     return char_dict
 
+def calculateInitiative():
+    loadRoundData(getCurrentRound())
+    for char_name in list(charlist):
+        char = charlist[char_name]
+        if char.initiative == 0 and char.state != "dead":
+            char.RollInitiative()
+    writeData()
+
+
 class Character:
 
-    def __init__(self, name, role, armor, stats, skills, weapons, ammo, current_weapon="", state="active", wounded="no", hp=40, blunt_dmg=0, EV=0, notes=""):
+    def __init__(self, name, role, armor, stats, skills, weapons, ammo, current_weapon="", state="active", wounded="no", hp=40, blunt_dmg=0, EV=0, notes="", initiative=0):
         self.name = name
         self.role = role
         self.state = state
@@ -175,11 +185,21 @@ class Character:
         self.weapons = weapons
         self.ammo = ammo
         self.notes = notes
+        self.initiative = initiative
 
         if current_weapon == "":
             self.current_weapon = list(weapons)[0]
         else:
             self.current_weapon = current_weapon
+
+    def RollInitiative(self):
+        mod = 0
+        if "Combat Sense" in self.skills:
+            mod += self.skills["Combat Sense"]
+        mod += self.GetStatValue("REF")
+
+        initiative = dice(10, True) + mod
+        self.initiative = initiative
 
     def GetBTM(self):
         bt = self.stats["BT"]
@@ -626,42 +646,36 @@ charlist = {}
 cur_round = getCurrentRound()
 loadRoundData(cur_round)
 
-if len(sys.argv) == 1:
-    print("Round {}".format(cur_round))
-    while True:
-        cmd = input("> ")
-        if cmd == "exit":
-            break
-        if cmd == "help":
-            print("Commands:\n\
+
+def executeCommand(args):
+    print(args)
+    cmd = args[0]
+    args_list = args
+    args_list.pop(0)
+    if cmd == "exit":
+        sys.exit(0)
+    if cmd == "help":
+        print("Commands:\n\
     getroundinfo\n\
     getcharinfo <character>\n\
     nextround\n\
     shoot <character> <target> <distance> [preroll=<number>] [ns] [cm=<modifier>] [f=<fullauto_burst_size>|b|s] [bp=<bodypart>]\n")
-        elif "getcharinfo" in cmd:
-            character = charlist[re.split(" ", cmd)[1]]
-            print(character.GetInfo())
-        elif cmd == "getroundinfo":
-            getRoundInfo()
-        elif "shoot" in cmd:
-            arg_list = re.split(" ",cmd)
-            shootParseArgs(arg_list)
-        elif cmd == "nextround":
-            makeNextRound()
-
-else:
-    print("Round {}".format(cur_round))
-    if sys.argv[1] == "nextround":
-        makeNextRound()
-
-    if sys.argv[1] == "getcharinfo":
-        character = charlist[sys.argv[2]]
-        print(character.GetInfo())
-
-    if sys.argv[1] == "getroundinfo":
+    elif cmd == "getroundinfo":
         getRoundInfo()
+    elif "shoot" in cmd:
+        shootParseArgs(args_list)
+    elif cmd == "nextround":
+        makeNextRound()
+    elif cmd == "getcharinfo":
+        print(charlist[args_list[0]].GetInfo())
 
-    if sys.argv[1] == "shoot":
-        arg_list = list(sys.argv)
-        arg_list.pop(0)
-        shootParseArgs(arg_list)
+
+if len(sys.argv) > 1:
+    args_list = list(sys.argv)
+    args_list.pop(0)
+    executeCommand(args_list)
+else:
+    while True:
+        cmd = input("> ")
+        arg_list = re.split(" ",cmd)
+        executeCommand(arg_list)
