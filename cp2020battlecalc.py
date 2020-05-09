@@ -160,14 +160,22 @@ def writeCharDataToDict(char_name):
         } )
     return char_dict
 
-def calculateInitiative():
-    loadRoundData(getCurrentRound())
+def calculateInitiative(overwrite=False):
+    global charlist
     for char_name in list(charlist):
         char = charlist[char_name]
-        if char.initiative == 0 and char.state != "dead":
+        if ( char.initiative == 0 or overwrite ) and char.state != "dead":
             char.RollInitiative()
     writeData()
 
+def getRoundOrder():
+    init_dict = {}
+    for char_name in charlist:
+        char = charlist[char_name]
+        init_dict.update( { char_name: char.initiative } )
+    
+    for i in sorted(init_dict, key=init_dict.get, reverse=True):
+        print(i, init_dict[i], charlist[i].state)
 
 class Character:
 
@@ -591,7 +599,7 @@ class Character:
                 result = self.GetStatValue("REF") + self.skills[weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] + bodypart_mod + firemode_mod
                 message += " = {}\n".format(result)
 
-                if result > difficulty:
+                if result >= difficulty:
                     if cover != '':
                         add_cover = input("Hit {} in the {}, apply cover? (y/n) ".format(target.name, bodypart))
                         if add_cover == "y":
@@ -668,7 +676,13 @@ def executeCommand(args):
         makeNextRound()
     elif cmd == "getcharinfo":
         print(charlist[args_list[0]].GetInfo())
-
+    elif cmd == "calcinit":
+        overwrite = False
+        if "ow" in args_list:
+            overwrite = True
+        calculateInitiative(overwrite)
+    elif cmd == "getroundorder":
+        getRoundOrder()
 
 if len(sys.argv) > 1:
     args_list = list(sys.argv)

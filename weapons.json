@@ -78,6 +78,16 @@
         "ROF": 1,
         "Rel": "ST",
         "Range": 50
+},
+"AK": {
+        "Type": "Rifle",
+        "WA": 0,
+        "Damage": "6D6+2",
+	"Ammo": "7.62x39",
+        "Shots": 30,
+        "ROF": 30,
+        "Rel": "UR",
+        "Range": 300
 }
 
 }
