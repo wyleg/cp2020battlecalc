@@ -450,7 +450,7 @@ class Character:
             if damage < 1:
                 damage = 1
                 self.blunt_dmg += 1
-            if armor_type != "no" or self.armor[armor_zone]["SP"] > 0:
+            if armor_type != "no" and self.armor[armor_zone]["SP"] > 0:
                 self.armor[armor_zone]["SP"] -= 1
             self.hp -= damage
 
@@ -686,7 +686,6 @@ loadRoundData(cur_round)
 
 
 def executeCommand(args):
-    print(args)
     cmd = args[0]
     args_list = args
     args_list.pop(0)
