@@ -450,7 +450,8 @@ class Character:
             if damage < 1:
                 damage = 1
                 self.blunt_dmg += 1
-            self.armor[armor_zone]["SP"] -= 1
+            if armor_type != "no" or self.armor[armor_zone]["SP"] > 0:
+                self.armor[armor_zone]["SP"] -= 1
             self.hp -= damage
 
             self.UpdateWoundState()
@@ -511,20 +512,6 @@ class Character:
         # b - burst fire
         # f - full auto
 
-        if type(target_name) == str:
-            target = charlist[target_name]
-        elif type(target_name) == Character:
-            target = target_name
-        firemode_mod = 0
-        firemode_msg = ""
-        effective_cover = ""
-
-        print(cover)
-        if bodypart != "random":
-            if "{} severed".format(bodypart) in target.notes:
-                message = "{}'s {} is already severed, choose another bodypart\n".format(target.name, bodypart)
-                return message
-
         def calculateShotDamage(target, cover, bodypart, ammo_type):
             message = ""
             if bodypart == "random":
@@ -538,10 +525,21 @@ class Character:
 
             return message
 
+        if type(target_name) == str:
+            target = charlist[target_name]
+        elif type(target_name) == Character:
+            target = target_name
+        firemode_mod = 0
+        firemode_msg = ""
+        effective_cover = ""
+
+        if bodypart != "random":
+            if "{} severed".format(bodypart) in target.notes:
+                message = "{}'s {} is already severed, choose another bodypart\n".format(target.name, bodypart)
+                return message
 
         if self.state != "active":
             return "{} is {} and can't shoot\n".format(self.name, self.state)
-
 
         if self.weapons[self.current_weapon]["mag"] < 3 and firemode == "b":
             return "Not enough ammo for 3 round burst\n"
@@ -573,15 +571,22 @@ class Character:
 
                 # ЕСЛИ НЕТ СКИЛЛА НА СТРЕЛЬБУ ИЗ НУЖНОЙ ПУШКИ
 
-
                 if firemode == "b" and difficulty <= 20:
                     firemode_mod = 3
                     firemode_msg = " + 3 (burst fire)"
+                elif firemode == "f":
+                    if burst_size > self.weapons[self.current_weapon]["mag"]:
+                        message += "Not enough ammo in magazine\n"
+                        return message
+                    if difficulty <= 15: # only at close range
+                        firemode_mod = int(burst_size / 10)
+                    else:
+                        firemode_mod = -int(burst_size / 10)
+                    firemode_msg = " + fullauto({})".format(firemode_mod)
 
                 weapontype = WEAPONS[self.current_weapon]["Type"]
                 message += "Gun range: {}, distance to target: {}, difficulty: {}\n"\
                     .format(WEAPONS[self.current_weapon]["Range"], distance, difficulty)
-
 
                 message += "REF({}) + {}({}) + WA({}) + d10({}){}"\
                     .format(self.GetStatValue("REF"), weapontype, self.skills[weapontype], WEAPONS[self.current_weapon]["WA"], diceroll, firemode_msg)
@@ -632,6 +637,28 @@ class Character:
                                     effective_cover = ""
                             message += calculateShotDamage(target, effective_cover, bodypart, ammo_type)
                         self.weapons[self.current_weapon]["mag"] -= 3
+
+                    elif firemode == "f":
+                        print("Result: {}".format(result))
+                        print("Difficulty: {}".format(difficulty))
+                        hit_count = result - difficulty + 1
+                        if hit_count > burst_size:
+                            hit_count = burst_size
+                        message += "{} hits in full auto burst\n".format(hit_count)
+                        for _ in range(0, hit_count):
+                            bodypart = rollBodypart()
+                            while "{} severed".format(bodypart) in target.notes:
+                                message += "{}'s {} is severed, rerolling bodypart\n".format(target.name, bodypart)
+                                bodypart = rollBodypart()
+                            if cover != '':
+                                add_cover = input("Hit {} in the {}, apply cover? (y/n) ".format(target.name, bodypart))
+                                if add_cover == "y":
+                                    effective_cover = cover
+                                else:
+                                    effective_cover = ""
+                            message += calculateShotDamage(target, effective_cover, bodypart, ammo_type)
+                        self.weapons[self.current_weapon]["mag"] -= burst_size
+
 
                 else:
                     message += "Missed\n"
