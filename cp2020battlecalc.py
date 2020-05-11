@@ -506,7 +506,6 @@ class Character:
 
         return damage, damage_output, message
 
-
     def Shoot(self, target_name, distance, firemode="s", cover="", burst_size=0, preroll=0, bodypart="random", cm=0, nosaveroll=False):
         # s - single fire
         # b - burst fire
@@ -544,8 +543,9 @@ class Character:
         if self.weapons[self.current_weapon]["mag"] < 3 and firemode == "b":
             return "Not enough ammo for 3 round burst\n"
 
-        if self.weapons[self.current_weapon]["mag"] > 0:
-
+        if self.weapons[self.current_weapon]["mag"] == 0:
+            return "No ammo\n"
+        else:
             ammo_type = self.weapons[self.current_weapon]["ammotype"]
 
             if bodypart != "random":
