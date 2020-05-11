@@ -586,6 +586,9 @@ class Character:
                 message += "REF({}) + {}({}) + WA({}) + d10({}){}"\
                     .format(self.GetStatValue("REF"), weapontype, self.skills[weapontype], WEAPONS[self.current_weapon]["WA"], diceroll, firemode_msg)
 
+                if cm != 0:
+                    message += " + custom_mod({})".format(cm)
+
                 if bodypart != "random":
                     bodypart_mod = -4
                     message += " - bodypart(4)"
@@ -596,7 +599,7 @@ class Character:
                         message += "{}'s {} is severed, rerolling bodypart\n".format(target.name, bodypart)
                         bodypart = rollBodypart()
 
-                result = self.GetStatValue("REF") + self.skills[weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] + bodypart_mod + firemode_mod
+                result = self.GetStatValue("REF") + self.skills[weapontype] + diceroll + WEAPONS[self.current_weapon]["WA"] + bodypart_mod + firemode_mod + cm
                 message += " = {}\n".format(result)
 
                 if result >= difficulty:
