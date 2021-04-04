@@ -44,7 +44,7 @@ def shootParseArgs(arg_list):
     else:
         print("No such character in this round")
         return
-    if arg_list[0] in list(charlist):
+    if arg_list[1] in list(charlist):
         target = charlist[arg_list[1]]
     else:
         print("No such target in this round")
@@ -696,6 +696,8 @@ def executeCommand(args):
     getroundinfo\n\
     getcharinfo <character>\n\
     nextround\n\
+    calcinit\n\
+    getroundorder\n\
     shoot <character> <target> <distance> [preroll=<number>] [ns] [cm=<modifier>] [f=<fullauto_burst_size>|b|s] [bp=<bodypart>]\n")
     elif cmd == "getroundinfo":
         getRoundInfo()
