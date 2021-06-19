@@ -1,0 +1,23 @@
+{ "name": "Bob",
+    "role": "Solo",
+    "state": "active",
+    "wounded": "no",
+    "notes": "",
+    "hp": 40,
+    "blunt_dmg": 0,
+    "EV": 1,
+    "initiative": 10,
+    "current_weapon": "",
+    "armor": {
+        "head": { "type": "hard", "SP": 0 },
+        "torso": { "type": "hard", "SP": 0 },
+        "r_arm": { "type": "hard", "SP": 0 },
+        "l_arm": { "type": "hard", "SP": 0 },
+        "r_leg": { "type": "hard", "SP": 0 },
+        "l_leg": { "type": "hard", "SP": 0 }
+    },
+    "stats": { "INT": 5, "REF": 5, "TECH": 5, "COOL": 5, "EMP": 5, "ATTR": 5, "LUCK": 5, "MA": 5, "BT": 5 },
+    "skills": { "Rifle": 6 },
+    "weapons": { "MDR-C": { "mag": 30, "ammotype": "fmj" }  },
+    "ammo": {}
+}
